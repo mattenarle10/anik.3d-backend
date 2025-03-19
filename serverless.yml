@@ -1,0 +1,170 @@
+# "org" ensures this Service is used with the correct Serverless Framework License Key.
+org: ecvphdevsmatt
+# "service" is the name of this project. This will also be added to your AWS resource names.
+service: serverless-next-anik3d
+plugins:
+  - serverless-dotenv-plugin
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: false # Don't use Docker for packaging
+    useDownloadCache: true
+    useStaticCache: true
+    slim: true # Makes the package smaller by removing unnecessary files
+    noDeploy: []  # Do not exclude any packages
+
+
+
+provider:
+  name: aws
+  runtime: python3.12
+  region: us-east-2
+  role: arn:aws:iam::272898481162:role/serverless-app-role
+  environment:
+    S3_BUCKET_NAME: ${env:S3_BUCKET_NAME}
+    PRODUCTS_TABLE_NAME: ${env:PRODUCTS_TABLE_NAME}
+    USER_TABLE_NAME: ${env:USER_TABLE_NAME}
+    ORDER_TABLE_NAME: ${env:ORDER_TABLE_NAME}
+    JWT_SECRET: ${env:JWT_SECRET}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:BatchGetItem
+        - dynamodb:BatchWriteItem
+      Resource:
+        - arn:aws:dynamodb:${self:provider.region}:*:table/${env:PRODUCTS_TABLE_NAME}
+        - arn:aws:dynamodb:${self:provider.region}:*:table/${env:USER_TABLE_NAME}
+        - arn:aws:dynamodb:${self:provider.region}:*:table/${env:ORDER_TABLE_NAME}
+    - Effect: Allow
+      Action:
+        - s3:PutObject
+        - s3:GetObject
+        - s3:DeleteObject
+        - s3:PutObjectAcl
+      Resource: arn:aws:s3:::${env:S3_BUCKET_NAME}/*
+
+functions:
+  # Admin endpoints
+  adminLogin:
+    handler: handlers/admin_handler.login
+    events:
+      - http:
+          path: /admin/login
+          method: post
+          cors: true
+  
+  # Product endpoints
+  createProduct:
+    handler: handlers/product_handler.create
+    events:
+      - http:
+          path: /products
+          method: post
+          cors: true
+  
+  getAllProducts:
+    handler: handlers/product_handler.get_all
+    events:
+      - http:
+          path: /products
+          method: get
+          cors: true
+  
+  getProductById:
+    handler: handlers/product_handler.get_by_id
+    events:
+      - http:
+          path: /products/{id}
+          method: get
+          cors: true
+  
+  updateProduct:
+    handler: handlers/product_handler.update
+    events:
+      - http:
+          path: /products/{id}
+          method: put
+          cors: true
+  
+  deleteProduct:
+    handler: handlers/product_handler.delete
+    events:
+      - http:
+          path: /products/{id}
+          method: delete
+          cors: true
+  
+  # Inventory endpoints
+  updateProductStock:
+    handler: handlers/inventory_handler.update_stock
+    events:
+      - http:
+          path: /products/{id}/stock
+          method: put
+          cors: true
+  
+  # Admin user management
+  getAllUsers:
+    handler: handlers/user_handler.get_all
+    events:
+      - http:
+          path: /admin/users
+          method: get
+          cors: true
+  
+  # Admin order management
+  getAllOrders:
+    handler: handlers/order_handler.get_all
+    events:
+      - http:
+          path: /admin/orders
+          method: get
+          cors: true
+  
+  updateOrderStatus:
+    handler: handlers/order_handler.update_status
+    events:
+      - http:
+          path: /admin/orders/{id}/status
+          method: put
+          cors: true
+  
+  # User endpoints
+  userRegister:
+    handler: handlers/user_handler.register
+    events:
+      - http:
+          path: /users/register
+          method: post
+          cors: true
+  
+  userLogin:
+    handler: handlers/user_handler.login
+    events:
+      - http:
+          path: /users/login
+          method: post
+          cors: true
+  
+  getUserOrders:
+    handler: handlers/order_handler.get_user_orders
+    events:
+      - http:
+          path: /users/orders
+          method: get
+          cors: true
+          
+  createOrder:
+    handler: handlers/order_handler.create
+    events:
+      - http:
+          path: /orders
+          method: post
+          cors: true
