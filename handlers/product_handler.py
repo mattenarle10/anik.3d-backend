@@ -4,6 +4,8 @@ import base64
 from models.product_model import ProductModel
 from gateways.product_gateway import ProductGateway
 from handlers.utils_handler import generate_response
+import boto3
+import uuid
 
 # Initialize the product gateway
 product_gateway = ProductGateway()
@@ -11,7 +13,7 @@ product_gateway = ProductGateway()
 def create(event, context):
     """Create a new product with optional 3D model file"""
     try:
-        # Parse request body
+        # Parse request body    
         body = json.loads(event.get('body', '{}'))
         
         # Check for file content in base64 format
@@ -24,6 +26,10 @@ def create(event, context):
             del body['model_file']
             del body['file_name']
         
+        # Set default category if not provided
+        if 'category' not in body:
+            body['category'] = 'default'
+            
         # Validate product data
         product_model = ProductModel(body)
         validation_errors = product_model.validate()
@@ -71,14 +77,17 @@ def get_by_id(event, context):
         
         product = None
         
+        # Check if it's a UUID format (contains hyphens in the correct pattern)
+        is_uuid_format = '-' in identifier and len(identifier.replace('-', '')) == 32
+        
         # Auto-detect or use specified lookup type
-        if lookup_type == 'name' or (lookup_type == 'auto' and not identifier.isalnum()):
+        if lookup_type == 'name' or (lookup_type == 'auto' and not is_uuid_format and not identifier.isalnum()):
             # Look up by name
             product = product_gateway.get_by_name(identifier)
             if not product:
                 return generate_response(404, {"error": f"Product with name '{identifier}' not found"})
         else:
-            # Look up by ID
+            # Look up by ID (including UUID format)
             product = product_gateway.get_by_id(identifier)
             if not product:
                 return generate_response(404, {"error": f"Product with ID '{identifier}' not found"})
@@ -161,3 +170,51 @@ def _is_admin(event):
             return False
     
     return False
+
+def is_admin(user):
+    """Check if user is an admin"""
+    if user:
+        return user.get('is_admin', False)
+    
+    return False
+
+def generate_upload_url(event, context):
+    """Generate a presigned URL for direct S3 upload"""
+    try:
+        # Parse request body
+        body = json.loads(event.get('body', '{}'))
+        file_name = body.get('fileName')
+        file_type = body.get('fileType')
+        
+        if not file_name:
+            return generate_response(400, {"error": "fileName is required"})
+        
+        # Generate a unique file key
+        file_key = f"models/{uuid.uuid4()}-{file_name}"
+        
+        # Create S3 client
+        s3_client = boto3.client('s3')
+        
+        # Generate presigned URL for PUT operation
+        presigned_url = s3_client.generate_presigned_url(
+            'put_object',
+            Params={
+                'Bucket': os.environ['S3_BUCKET_NAME'],
+                'Key': file_key,
+                'ContentType': file_type or 'model/gltf-binary'
+            },
+            ExpiresIn=3600  # URL expires in 1 hour
+        )
+        
+        # Return the presigned URL and file details
+        return generate_response(200, {
+            'uploadUrl': presigned_url,
+            'fileKey': file_key,
+            'modelUrl': f"https://{os.environ['S3_BUCKET_NAME']}.s3.amazonaws.com/{file_key}"
+        })
+    
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error in generate_upload_url: {str(e)}\n{error_details}")
+        return generate_response(500, {"error": str(e)})

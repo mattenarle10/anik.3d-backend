@@ -11,15 +11,16 @@ custom:
     dockerizePip: false # Don't use Docker for packaging
     useDownloadCache: true
     useStaticCache: true
-    slim: true # Makes the package smaller by removing unnecessary files
+    slim: true 
     noDeploy: []  # Do not exclude any packages
 
 
 
 provider:
   name: aws
-  runtime: python3.12
-  region: us-east-2
+  runtime: python3.9
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-2'}
   role: arn:aws:iam::272898481162:role/serverless-app-role
   environment:
     S3_BUCKET_NAME: ${env:S3_BUCKET_NAME}
@@ -27,6 +28,14 @@ provider:
     USER_TABLE_NAME: ${env:USER_TABLE_NAME}
     ORDER_TABLE_NAME: ${env:ORDER_TABLE_NAME}
     JWT_SECRET: ${env:JWT_SECRET}
+    ADMIN_ID: ${env:ADMIN_ID}
+    ADMIN_PASSWORD: ${env:ADMIN_PASSWORD}
+  
+  apiGateway:
+    binaryMediaTypes:
+      - 'multipart/form-data'
+    minimumCompressionSize: 1024
+  
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -68,6 +77,16 @@ functions:
           path: /products
           method: post
           cors: true
+  
+  generateUploadUrl:
+    handler: handlers/product_handler.generate_upload_url
+    events:
+      - http:
+          path: /products/generate-upload-url
+          method: post
+          cors: true
+    timeout: 30
+    memorySize: 1024
   
   getAllProducts:
     handler: handlers/product_handler.get_all
@@ -136,6 +155,14 @@ functions:
           method: put
           cors: true
   
+  deleteOrder:
+    handler: handlers/order_handler.delete_order
+    events:
+      - http:
+          path: /admin/orders/{id}
+          method: delete
+          cors: true
+  
   # User endpoints
   userRegister:
     handler: handlers/user_handler.register
@@ -168,3 +195,13 @@ functions:
           path: /orders
           method: post
           cors: true
+  
+  generateOrderUploadUrl:
+    handler: handlers/order_handler.generate_upload_url
+    events:
+      - http:
+          path: /orders/generate-upload-url
+          method: post
+          cors: true
+    timeout: 30
+    memorySize: 1024

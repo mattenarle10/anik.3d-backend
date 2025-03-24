@@ -2,6 +2,7 @@ from gateways.base_gateway import BaseGateway
 import os
 import boto3
 import uuid
+from datetime import datetime
 
 class ProductGateway(BaseGateway):
     def __init__(self):

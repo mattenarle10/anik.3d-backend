@@ -20,6 +20,10 @@ class ProductModel(BaseModel):
         if 'quantity' in self.product_data and not isinstance(self.product_data['quantity'], int):
             self.product_data['quantity'] = int(self.product_data['quantity'])
         
+        # Ensure category is set if not present
+        if 'category' not in self.product_data:
+            self.product_data['category'] = 'default'
+        
     def validate(self):
         """Validate product data"""
         errors = []
