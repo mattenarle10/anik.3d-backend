@@ -56,3 +56,52 @@ class UserGateway(BaseGateway):
             'token': token,
             'user': user_model.to_json()
         }
+        
+    def update_user(self, user_id, update_data):
+        """Update an existing user"""
+        # Get the existing user
+        existing_user = self.get_by_id(user_id)
+        if not existing_user:
+            return {'errors': ['User not found']}
+            
+        # Create a user model with the existing data
+        user_model = UserModel(existing_user)
+        
+        # Check if trying to update email and if it's already taken
+        if 'email' in update_data and update_data['email'] != existing_user.get('email'):
+            existing_email = self.get_by_email(update_data['email'])
+            if existing_email:
+                return {'errors': ['Email already registered']}
+        
+        # Update the user data
+        updated_data = {**existing_user, **update_data}
+        
+        # If password is being updated, we need to hash it
+        if 'password' in update_data:
+            # Create a new user model with the updated data to hash the password
+            temp_model = UserModel(updated_data)
+            # Get the updated data with the hashed password
+            updated_data = temp_model.user_data
+        
+        # Update the user in the database
+        result = self.update(user_id, updated_data)
+        
+        if not result:
+            return {'errors': ['Failed to update user']}
+            
+        return UserModel(result).to_json()
+    
+    def delete_user(self, user_id):
+        """Delete a user by ID"""
+        # Check if user exists
+        existing_user = self.get_by_id(user_id)
+        if not existing_user:
+            return {'errors': ['User not found']}
+            
+        # Delete the user
+        result = self.delete(user_id)
+        
+        if not result:
+            return {'errors': ['Failed to delete user']}
+            
+        return {'message': 'User deleted successfully'}

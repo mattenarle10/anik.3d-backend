@@ -5,6 +5,7 @@ import hashlib
 import os
 import json
 import base64
+from datetime import datetime
 
 class UserModel(BaseModel):
     def __init__(self, user_data=None):
@@ -13,6 +14,10 @@ class UserModel(BaseModel):
         # If user_id is not provided, generate one
         if 'user_id' not in self.user_data:
             self.user_data['user_id'] = str(uuid.uuid4())
+            
+        # Add date_created for new users
+        if 'date_created' not in self.user_data:
+            self.user_data['date_created'] = datetime.utcnow().isoformat()
         
         # Hash password if it's a new user
         if 'password' in self.user_data and not self.user_data.get('password_hash'):

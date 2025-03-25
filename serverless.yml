@@ -179,6 +179,22 @@ functions:
           path: /users/login
           method: post
           cors: true
+          
+  updateUser:
+    handler: handlers/user_handler.update
+    events:
+      - http:
+          path: /users/update
+          method: put
+          cors: true
+          
+  deleteUser:
+    handler: handlers/user_handler.delete
+    events:
+      - http:
+          path: /users/delete
+          method: delete
+          cors: true
   
   getUserOrders:
     handler: handlers/order_handler.get_user_orders
